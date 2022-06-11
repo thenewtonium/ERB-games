@@ -13,25 +13,29 @@ The output is an object containing
 	- missing words not assigned to a variable (type "[]")
 	- missing words assigned to a variable (type "[|]")
 	- inserted text from variables (type "{}")
-- "variables", a lookup object mapping variable names to the index in "parsed" at which they were assigned
+- "varSources", a lookup object mapping variable names to the index in "parsed" at which they were assigned
+- "varTargets", a set of indices in "parsed" that are of the form {}
+- "blanks", a set of indices in "parsed" that are of the form [] or [|]
 
 */
 
 function MMLparser (MMLtext) {
 	// output parsing
-	var parsed = [];
-	var variables = {};
+	let parsed = [];
+	let varSources = {};
+	let blanks = new Set();
+	let varTargets = new Set();
 
 	// stores parsing state, either "", "[", "|", or "{".
-	var state = "";
+	let state = "";
 
 	// chars at which to end "raw text mode"
-	var textEnders = new Set(["[","{"]);
+	let textEnders = new Set(["[","{"]);
 
 	// various buffers for parsing purposes
-	var lexClassBuffer = "";
-	var varNameBuffer = "";
-	var textBuffer = "";
+	let lexClassBuffer = "";
+	let varNameBuffer = "";
+	let textBuffer = "";
 
 	for (c of MMLtext) {
 		switch (state) {
@@ -47,10 +51,10 @@ function MMLparser (MMLtext) {
 
 					// if the [] ends without a var
 					case "]":
-						parsed.push ( {
+						blanks.add( parsed.push ( {
 							"type" : "[]",
 							"lexClass" : lexClassBuffer.trim()
-						});
+						}) -1);
 						state = "";
 						textBuffer = "";
 						break;
@@ -67,17 +71,19 @@ function MMLparser (MMLtext) {
 				switch (c) {
 					// for end of [], objectise this [] & record its index in the variable tracker object
 					case "]":
-						var vn = varNameBuffer.trim();
-						variables[vn] = parsed.push ( {
+						let vn = varNameBuffer.trim();
+						let ind = parsed.push ( {
 							"type" : "[|]",
 							"lexClass" : lexClassBuffer.trim(),
 							"variable" : vn
 						}) - 1 ;
+						varSources[vn] = ind;
+						blanks.add(ind);
 						state = "";
 						textBuffer = "";
 						break;
 
-					// otherwise just add to the var name buffer
+					// otherwise just add to the let name buffer
 					default:
 						varNameBuffer += c;
 						break;
@@ -89,10 +95,10 @@ function MMLparser (MMLtext) {
 				switch (c) {
 					// for end of {}, objectise
 					case "}":
-						parsed.push ( {
+						varTargets.add (parsed.push ( {
 							"type" : "{}",
 							"variable" : varNameBuffer.trim()
-						});
+						}) -1 );
 						state = "";
 						textBuffer = "";
 						break;
@@ -128,7 +134,7 @@ function MMLparser (MMLtext) {
 	});
 
 
-	return {"parsed" : parsed, "variables" : variables};
+	return {"parsed" : parsed, "varSources" : varSources, "blanks" : [...blanks]};//, "varTargets": varTargets};
 }
 
 module.exports = {"parser" : MMLparser};
