@@ -7,6 +7,14 @@ export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
 nvm install 16.15.1
 nvm use 16.15.1
+npm install
+
+node deploy-commands.js
+
+corepack enable
 yarn global add pm2
+
+export PATH="${HOME}/.yarn/bin:${PATH}"
+
 pm2 start index.js --name MadLibs
 pm2 save
