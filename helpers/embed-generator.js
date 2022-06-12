@@ -18,14 +18,16 @@ module.exports = {
        		let ln = l + "\r\n";
              // if can add the line then do
        		if ( (ct.length + ln.length) < (RL.DESC) ) {
-       			ct += ln;
+       			if (ln) { // avoid random "undefined"'s'
+       				ct += ln;
+       			}
        		} else {
        			//console.log(ln);
                 // if couldn't add the line due to the new line being too long, then we seek to split it up at the last whitespace character before the length limit
                 if (ln.length >= RL.DESC) {
                   // push current text if it isn't trivial
                   if (ct.length > 0) {
-                    embeds.push( new MessageEmbed().setDescription(ct) );
+                    embeds.push( new MessageEmbed().setDescription(ct.trim()) );
                   }
                   ct = ln;
 
@@ -52,13 +54,13 @@ module.exports = {
                   // when we have got the line down to an acceptable length, we can let it continue as the current text
                 } else {
                   // if no issue just push the text and set current text to the line
-                  embeds.push( new MessageEmbed().setDescription(ct) );
+                  embeds.push( new MessageEmbed().setDescription(ct.trim()) );
                   ct = ln;
                 }
        		}
        	}
        	// put rest of text into final embed
-       	embeds.push( new MessageEmbed().setDescription(ct) );
+       	embeds.push( new MessageEmbed().setDescription(ct.trim()) );
 
 		return embeds;
 	}

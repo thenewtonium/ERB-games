@@ -137,6 +137,9 @@ function MLMparser (MLMtext) {
 			default:
 				if (textEnders.has(c)) {
 					state = c;
+					if (!textBuffer) {
+						textBuffer = "";
+					}
 					parsed.push ( {
 						"type" : "",
 						"text" : textBuffer
