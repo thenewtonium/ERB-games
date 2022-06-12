@@ -1,6 +1,7 @@
 const { MessageEmbed, MessageActionRow, MessageButton, TextInputComponent, Modal } = require('discord.js');
 const { inlineCode, SlashCommandBuilder, underscore } = require('@discordjs/builders');
 const {randint} = require('../helpers/utils.js');
+const { textToEmbeds } = require('../helpers/embed-generator.js');
 
 // madlibs markup parser
 const { parser } = require('../helpers/mlm-parser.js');
@@ -28,6 +29,9 @@ module.exports = {
 		const cid = channel.id
 		const keyvs = module.exports.keyvs;
 
+		// reduce clashing responses
+		await keyvs.currentPrompts.set(cid,null);
+
 		// fetch game data
 		let blankSet = await keyvs.blanksSets.get(cid);
 		let gameData = await keyvs.gameData.get(cid);
@@ -40,13 +44,12 @@ module.exports = {
 			// create embed
 			const embed = new MessageEmbed()
 				.setTitle('Mad Libs')
-				.setDescription('Give me a word of the type ' + inlineCode(lexClass) + "." )
-				.setFooter('(reply to this message)');
+				.setDescription(`Give me a ${inlineCode(lexClass)}.` )
+				.setFooter('(↩️ this message)');
 
 			await keyvs.currentPrompts.set(cid, (await channel.send({embeds : [embed]} )).id);
 		} else {
 			// game finished state
-
 			await channel.sendTyping()
 
 			// parse responses
@@ -70,19 +73,24 @@ module.exports = {
 				}
 			}
 
-			// create embed
-			const embed = new MessageEmbed()
-				.setTitle(`Mad Libs - ${gameData.parsed.title}`)
-				.setDescription(finalText);
+			// create embeds
+			let embeds = textToEmbeds ( finalText );
+			embeds[0].setTitle(`Mad Libs - ${gameData.parsed.title}`);
 
 			//await keyvs.gameStati.set(cid, true);
-			await keyvs.currentPrompts.set(cid,null);
 
-			await channel.send({embeds: [embed]});
-			(await channel.fetchStarterMessage() ).reply({
-				content: "And the result was...",
-				embeds:[embed]
-			});
+			// send result in thread
+			for (emb of embeds) {
+				await channel.send({embeds: [emb]});
+			}
+
+			// send result in parent channel
+			const startMsg = await channel.fetchStarterMessage();
+			await startMsg.send ( {content:"And the result is...", embeds:[embeds[0]]});
+			for (var i=1; i < embeds.length; i++) {
+				await startMsg.channel.send({embeds: [embeds[i]]});
+			}
+
 
 		}
 	},
@@ -94,6 +102,12 @@ module.exports = {
 
 		// check that response to correct prompt...
 		if ((await keyvs.currentPrompts.get(cid)) == reference.id) {
+
+			// reject multiline messages
+			if (message.content.split("\n").length > 0) {
+				await message.reply({content:"Single lines only!"});
+				return;
+			}
 
 			// fetch game data
 			let blankSet = await keyvs.blanksSets.get(cid);

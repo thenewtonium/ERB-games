@@ -1,6 +1,6 @@
 // script for testing the madlibs markup decoder
 
-const { parser } = require("../helpers/mml-parser.js")
+const { parser } = require("../helpers/mlm-parser.js")
 
 testData = [
 
