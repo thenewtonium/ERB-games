@@ -25,7 +25,6 @@ module.exports = {
 		// fetch game data
 		let gameData = await keyvs.gameData.get(cid);
 		let blankSet = await keyvs.blanksSets.get(cid);
-		let responses = await keyvs.responses.get (cid);
 
 
 		console.log(gameData);
@@ -55,11 +54,16 @@ module.exports = {
 		let cpId = await currentPrompts.get(channel.id);
 		(await channel.messages.fetch(cpId)).delete();
 	},
-
+	
+	// code for when button pressed, to produce the modal.
 	buttonResponse: async (nextFill, interaction) => {
 		const keyvs = module.exports.keyvs;
 		let gd =  await keyvs.gameData.get(interaction.channelId);
+		
+		// fetch the lexical class required
 		const lexClass = gd.parsed[nextFill].lexClass;
+		
+		// create modal popup
 		const modal = new Modal()
 			.setCustomId("ML:"+nextFill)
 			.setTitle('Mad Libs');
@@ -71,6 +75,20 @@ module.exports = {
 		modal.addComponents(actionRow);
 		await interaction.showModal(modal);
 	},
+	
+	// code for when modal submitted, to move on...
+	modalResponse: async (nextFill, interaction) => {
+		const keyvs = module.exports.keyvs;
+		const cid = interaction.channelId;
+		let gd =  await keyvs.gameData.get(cid);
+		let responses = await keyvs.responses.get(cid);
+		
+		if (responses.hasOwnProperty(nextFill)) {
+			interaction.reply("Sorry, someone beat you to it...");
+		}
+		
+		
+	}
 
 	_madlibs : async (interaction) => {
 			const keyvs = module.exports.keyvs;

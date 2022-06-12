@@ -58,6 +58,14 @@ client.on("interactionCreate", async (interaction) => {
 				await ml.buttonResponse(new Number(id.substr(3)), interaction);
 			}
 		}
+		
+		if (interaction.isModal()) {
+			const id = interaction.component.customId;
+			// when button is a madlibs response button
+			if ( id.substr(0,3) == "ML:") {
+				await ml.modalResponse(new Number(id.substr(3)), interaction);
+			}
+		}
 });
 
 client.login(token);
