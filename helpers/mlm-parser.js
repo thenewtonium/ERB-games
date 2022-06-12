@@ -3,6 +3,7 @@
 Tool to parse "Madlibs Markup" into objects that the bot can use.
 
 The syntax of "Madlibs Markup" is 
+- First line is title if starts with "#"
 - [ noun ] for a blank,
 - [ noun | var_name ] for a blank whose value will be stored in the variable `var_name`
 - { var_name } to place in the value of `var_name` as defined in another blank.
@@ -19,14 +20,14 @@ The output is an object containing
 
 */
 
-function MLMparser (MMLtext) {
+function MLMparser (MLMtext) {
 	// output parsing
 	let parsed = [];
 	let varSources = {};
 	let blanks = new Set();
 	let varTargets = new Set();
 
-	// stores parsing state, either "", "[", "|", or "{".
+	// stores parsing state, either "#", "", "[", "|", or "{".
 	let state = "";
 
 	// chars at which to end "raw text mode"
@@ -36,9 +37,32 @@ function MLMparser (MMLtext) {
 	let lexClassBuffer = "";
 	let varNameBuffer = "";
 	let textBuffer = "";
+	let titleBuffer = "";
 
-	for (c of MMLtext) {
+	// read title if text starts with #
+	if (MLMtext[0] == "#") {
+		state = "#";
+		skipFirst = true;
+	} else {
+		skipFirst = false;
+	}
+
+	for (c of MLMtext) {
+		if (skipFirst) {
+			skipFirst = false;
+			continue;
+		}
 		switch (state) {
+			// case for reading title
+			case "#":
+				switch (c) {
+					case "\n":
+						state = "";
+						break;
+					default:
+						titleBuffer += c;
+						break;
+				}
 			// case when we are "inside" a set of []
 			case "[":
 				switch (c) {
@@ -134,7 +158,7 @@ function MLMparser (MMLtext) {
 	});
 
 
-	return {"parsed" : parsed, "varSources" : varSources, "blanks" : [...blanks]};//, "varTargets": varTargets};
+	return {"parsed" : parsed, "varSources" : varSources, "blanks" : [...blanks], "title": titleBuffer.trim() };//, "varTargets": varTargets};
 }
 
 module.exports = {"parser" : MLMparser};

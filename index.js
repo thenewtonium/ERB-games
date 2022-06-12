@@ -1,5 +1,3 @@
-/* this is mostly just boilerplate code from discordjs.guide for setting up the modular structure of the bot */
-
 
 const fs = require('node:fs');
 const path = require('node:path');
@@ -8,10 +6,10 @@ const { token } = require('./config.json');
 
 const client = new Client({ intents: [Intents.FLAGS.GUILDS, Intents.FLAGS.GUILD_MESSAGES] });
 
+// boilerplate commands code
 client.commands = new Collection();
 const commandsPath = path.join(__dirname, 'commands');
 const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
-
 for (const file of commandFiles) {
 	const filePath = path.join(commandsPath, file);
 	const command = require(filePath);
@@ -20,12 +18,13 @@ for (const file of commandFiles) {
 	client.commands.set(command.data.name, command);
 }
 
+// load madlibs code + set commands from it
 const ml = require("./helpers/madlibs-core.js");
 client.commands.set("madlibs", {execute: ml._madlibs});
 
+// boilerplate events code, not really used lol
 const eventsPath = path.join(__dirname, 'events');
 const eventFiles = fs.readdirSync(eventsPath).filter(file => file.endsWith('.js'));
-
 for (const file of eventFiles) {
 	const filePath = path.join(eventsPath, file);
 	const event = require(filePath);
@@ -35,6 +34,7 @@ for (const file of eventFiles) {
 		client.on(event.name, (...args) => event.execute(...args));
 	}
 }
+
 
 
 client.on("interactionCreate", async (interaction) => {
@@ -47,7 +47,12 @@ client.on("interactionCreate", async (interaction) => {
 				await command.execute(interaction);
 			} catch (error) {
 				console.error(error);
-				await interaction.reply({ content: 'There was an error while executing this command!', ephemeral: true });
+				const errorMsg = { content: 'There was an error while executing this command!', ephemeral: false};
+				if (!interaction.replied) {
+					await interaction.reply(errorMsg);
+				} else {
+					await interaction.followUp(errorMsg);
+				}
 			}
 
 		}	
@@ -69,7 +74,9 @@ client.on("interactionCreate", async (interaction) => {
 		}*/
 });
 
+
 client.on("messageCreate", async (message) => {
+	// only react to replies
 	if (message.reference) {
 		const reference = await message.fetchReference();
 		if (reference.author.id == client.user.id) {

@@ -1,15 +1,20 @@
 const { MessageEmbed, MessageActionRow, MessageButton, TextInputComponent, Modal } = require('discord.js');
-const { inlineCode } = require('@discordjs/builders');
-const { SlashCommandBuilder, underscore } = require('@discordjs/builders');
+const { inlineCode, SlashCommandBuilder, underscore } = require('@discordjs/builders');
+const {randint} = require('../helpers/utils.js');
+
+// madlibs markup parser
 const { parser } = require('../helpers/mlm-parser.js');
+
+// for fetching texts
+const fs = require('node:fs');
+const path = require('node:path');
 
 // data storage
 const Keyv = require('keyv');
 
 // madlibs core functions
-
-
 module.exports = {
+	// gamestate data
 	keyvs: {
 		gameData : new Keyv(),
 		//gameStati : new Keyv(),
@@ -18,6 +23,7 @@ module.exports = {
 		currentPrompts : new Keyv()
 	},
 
+	// function to send a word prompt, or finish the game otherwise
 	prompt: async (channel) => {
 		const cid = channel.id
 		const keyvs = module.exports.keyvs;
@@ -66,7 +72,7 @@ module.exports = {
 
 			// create embed
 			const embed = new MessageEmbed()
-				.setTitle('Mad Libs')
+				.setTitle(`Mad Libs - ${gameData.parsed.title}`)
 				.setDescription(finalText);
 
 			//await keyvs.gameStati.set(cid, true);
@@ -79,11 +85,6 @@ module.exports = {
 			});
 
 		}
-	},
-
-	clearPrompt: async (channel) => {
-		let cpId = await currentPrompts.get(channel.id);
-		(await channel.messages.fetch(cpId)).delete();
 	},
 	
 	// code for when the bot is replied to
@@ -109,25 +110,28 @@ module.exports = {
 		}
 	},
 
+	// code for when the /madlibs command is called
 	_madlibs : async (interaction) => {
 				const keyvs = module.exports.keyvs;
 				(await interaction.reply('Starting a game of MadLibs...'));
 				//await keyvs.gameStati.set(cid, true);
 
-				// TO-DO: get text data
-				// for now just hard code something...
-				const source = "[word]";
-				const textName = "test";
+				// choose a random madlibs file
+				const textsPath = path.join(__dirname, '..', 'texts');
+				const textFiles= fs.readdirSync(textsPath).filter(file => file.endsWith('.txt'));
+				const file = textFiles[randint(0, textFiles.length)];
 
+				// parse the file
+				const parsed = parser(fs.readFileSync(path.join(textsPath, file),'utf8'));
+
+				// create madlibs thread
 				const chan = await (await interaction.fetchReply()).startThread({
-					name: textName,
+					name: parsed.title,
 					reason: "mad libs",
 				});
 
+				// store data in keyvs
 				const cid = chan.id;
-
-				// parse the source, then store the components in keyvs
-				const parsed = parser(source);
 				await keyvs.gameData.set (cid, parsed);
 				await keyvs.blanksSets.set (cid, parsed.blanks);
 				await keyvs.responses.set (cid, {});
@@ -135,6 +139,6 @@ module.exports = {
 				// begin game...
 				await module.exports.prompt (chan);
 			//}
-		},
+		}, 
 
 };
