@@ -1,7 +1,7 @@
 const { MessageEmbed, MessageActionRow, MessageButton, TextInputComponent, Modal } = require('discord.js');
 const { inlineCode } = require('@discordjs/builders');
-const { SlashCommandBuilder } = require('@discordjs/builders');
-const { parser } = require('../helpers/mml-parser.js');
+const { SlashCommandBuilder, underscore } = require('@discordjs/builders');
+const { parser } = require('../helpers/mlm-parser.js');
 
 // data storage
 const Keyv = require('keyv');
@@ -23,31 +23,58 @@ module.exports = {
 		const keyvs = module.exports.keyvs;
 
 		// fetch game data
-		let gameData = await keyvs.gameData.get(cid);
 		let blankSet = await keyvs.blanksSets.get(cid);
+		let gameData = await keyvs.gameData.get(cid);
 
+		if (blankSet.length > 0) {
 
-		console.log(gameData);
-		console.log(blankSet);
+			const nextFill = blankSet.pop();
+			const lexClass = gameData.parsed[nextFill].lexClass;
 
-		const nextFill = blankSet.pop();
-		const lexClass = gameData.parsed[nextFill].lexClass;
+			// create embed
+			const embed = new MessageEmbed()
+				.setTitle('Mad Libs')
+				.setDescription('Give me a word of the type ' + inlineCode(lexClass) + "." )
+				.setFooter('(reply to this message)');
 
-		// create embed
-		const embed = new MessageEmbed()
-		.setTitle('Mad Libs')
-		.setDescription('Give me a word of the type ' + inlineCode(lexClass) + "." );
+			await keyvs.currentPrompts.set(cid, (await channel.send({embeds : [embed]} )).id);
+		} else {
+			// game finished state
 
-		// create text field
-		const row = new MessageActionRow()
-			.addComponents(
-				new MessageButton ()
-					.setCustomId("ML:"+nextFill)
-					.setLabel("↩️")
-					.setStyle("PRIMARY")
-			);
+			await channel.sendTyping()
 
-		await channel.send({embeds : [embed], components: [row]});
+			// parse responses
+			let finalText = "";
+			const response = await keyvs.responses.get(cid);
+			for (var i =0; i < gameData.parsed.length; i++) {
+				let token = gameData.parsed[i];
+				switch (token.type) {
+					case "[]":
+						finalText += underscore(response[i]);
+						break;
+					case "[|]":
+						finalText += underscore(response[i]);
+						break;
+					case "{}":
+						finalText += underscore( response[ gameData.varSources[ token.variable ] ] );
+						break;
+					default:
+						finalText += token.text;
+						break;
+				}
+			}
+
+			// create embed
+			const embed = new MessageEmbed()
+				.setTitle('Mad Libs')
+				.setDescription(finalText);
+
+			await keyvs.gameStati.set(cid, true);
+			await keyvs.currentPrompts(cid,null);
+
+			await channel.send({embeds: [embed]});
+
+		}
 	},
 
 	clearPrompt: async (channel) => {
@@ -55,45 +82,32 @@ module.exports = {
 		(await channel.messages.fetch(cpId)).delete();
 	},
 	
-	// code for when button pressed, to produce the modal.
-	buttonResponse: async (nextFill, interaction) => {
+	// code for when the bot is replied to
+	onreply : async (message, reference) => {
+		const cid = reference.channel.id
 		const keyvs = module.exports.keyvs;
-		let gd =  await keyvs.gameData.get(interaction.channelId);
-		
-		// fetch the lexical class required
-		const lexClass = gd.parsed[nextFill].lexClass;
-		
-		// create modal popup
-		const modal = new Modal()
-			.setCustomId("ML:"+nextFill)
-			.setTitle('Mad Libs');
-		const wordInput = new TextInputComponent()
-			.setCustomId('word')
-			.setLabel("Give me a \"" + lexClass + "\"")
-			.setStyle('SHORT');
-		const actionRow = new MessageActionRow().addComponents(wordInput);
-		modal.addComponents(actionRow);
-		await interaction.showModal(modal);
-	},
-	
-	// code for when modal submitted, to move on...
-	modalResponse: async (nextFill, interaction) => {
-		const keyvs = module.exports.keyvs;
-		const cid = interaction.channelId;
-		let gd =  await keyvs.gameData.get(cid);
-		let responses = await keyvs.responses.get(cid);
-		
-		if (responses.hasOwnProperty(nextFill)) {
-			interaction.reply("Sorry, someone beat you to it...");
+
+		// check that response to correct prompt...
+		if ((await keyvs.currentPrompts.get(cid)) == reference.id) {
+
+			// fetch game data
+			let blankSet = await keyvs.blanksSets.get(cid);
+			let response = await keyvs.responses.get(cid);
+
+			const fill = blankSet.pop();
+			response [fill] = message.content;
+
+			// save game data
+			await keyvs.blanksSets.set(cid, blankSet);
+			await keyvs.responses.set(cid, response);
+
+			await module.exports.prompt(reference.channel);
 		}
-		
-		
-	}
+	},
 
 	_madlibs : async (interaction) => {
 			const keyvs = module.exports.keyvs;
 			const cid = interaction.channelId;
-			console.log (keyvs.gameStati.get(cid));
 			if (await keyvs.gameStati.get(cid)) {
 				await interaction.reply('A game is already in progress in this channel!');
 			} else {

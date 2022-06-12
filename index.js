@@ -6,7 +6,7 @@ const path = require('node:path');
 const { Client, Collection, Intents } = require('discord.js');
 const { token } = require('./config.json');
 
-const client = new Client({ intents: [Intents.FLAGS.GUILDS] });
+const client = new Client({ intents: [Intents.FLAGS.GUILDS, Intents.FLAGS.GUILD_MESSAGES] });
 
 client.commands = new Collection();
 const commandsPath = path.join(__dirname, 'commands');
@@ -19,6 +19,7 @@ for (const file of commandFiles) {
 	// With the key as the command name and the value as the exported module
 	client.commands.set(command.data.name, command);
 }
+
 const ml = require("./helpers/madlibs-core.js");
 client.commands.set("madlibs", {execute: ml._madlibs});
 
@@ -51,7 +52,7 @@ client.on("interactionCreate", async (interaction) => {
 
 		}	
 
-		if (interaction.isButton()) {
+		/*if (interaction.isButton()) {
 			const id = interaction.component.customId;
 			// when button is a madlibs response button
 			if ( id.substr(0,3) == "ML:") {
@@ -65,7 +66,17 @@ client.on("interactionCreate", async (interaction) => {
 			if ( id.substr(0,3) == "ML:") {
 				await ml.modalResponse(new Number(id.substr(3)), interaction);
 			}
+		}*/
+});
+
+client.on("messageCreate", async (message) => {
+	if (message.reference) {
+		const reference = await message.fetchReference();
+		if (reference.author.id == client.user.id) {
+			// send to madlibs code
+			await ml.onreply(message, reference);
 		}
+	}
 });
 
 client.login(token);

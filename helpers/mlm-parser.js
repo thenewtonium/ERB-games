@@ -19,7 +19,7 @@ The output is an object containing
 
 */
 
-function MMLparser (MMLtext) {
+function MLMparser (MMLtext) {
 	// output parsing
 	let parsed = [];
 	let varSources = {};
@@ -137,4 +137,4 @@ function MMLparser (MMLtext) {
 	return {"parsed" : parsed, "varSources" : varSources, "blanks" : [...blanks]};//, "varTargets": varTargets};
 }
 
-module.exports = {"parser" : MMLparser};
+module.exports = {"parser" : MLMparser};
