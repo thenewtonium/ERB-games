@@ -75,8 +75,9 @@ module.exports = {
 			
 			// create embeds
 			let embeds = textToEmbeds ( finalText.trim() );
-			if (gameData.parsed.title) {
-				embeds[0].setTitle(gameData.parsed.title);
+			if (gameData.title) {
+				embeds[0].setTitle(gameData.title);
+				await channel.edit ({name:gameData.title}, "madlibs end");
 			}
 
 			//await keyvs.gameStati.set(cid, true);
@@ -155,6 +156,7 @@ module.exports = {
 					const textFiles= fs.readdirSync(textsPath).filter(file => file.endsWith('.txt'));
 					file = textFiles[randint(0, textFiles.length)];
 					title = (/[^\/]+(?=(.txt$))/.exec(file))[0];
+					file = path.join(__dirname, '..', 'texts',file);
 				}
 				
 				const rep = await interaction.followUp({content:`Starting MadLibs from ${inlineCode(title)}...`});
@@ -162,9 +164,9 @@ module.exports = {
 				// parse the file
 				const parsed = parser(fs.readFileSync(file,'utf8'));
 				
-				if (parsed.title) {
+				/*if (parsed.title) {
 					title = parsed.title;
-				}
+				}*/
 				
 				// create madlibs thread
 				const chan = await rep.startThread({
@@ -185,7 +187,6 @@ module.exports = {
 				
 			// command for browsing available texts
 			case "list":
-				await interaction.deferReply();
 				
 				const TITLES_PER_PAGE = 10;
 				
@@ -213,7 +214,7 @@ module.exports = {
 					.setDescription(c)
 					.setFooter(`Page ${page}/${lastPage}`);
 					
-				await interaction.followUp({embeds: [embed], ephemeral:true});
+				await interaction.reply({embeds: [embed], ephemeral:true});
 				
 		}
 	}, 
