@@ -9,7 +9,7 @@ nvm install 16.15.1
 nvm use 16.15.1
 npm install
 
-node deploy-commands.js
+node deploy-commands-global.js
 
 corepack enable
 yarn global add pm2

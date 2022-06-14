@@ -2,6 +2,7 @@ const { MessageEmbed, MessageActionRow, MessageButton, TextInputComponent, Modal
 const { inlineCode, SlashCommandBuilder, underscore } = require('@discordjs/builders');
 const {randint} = require('../helpers/utils.js');
 const { textToEmbeds } = require('../helpers/embed-generator.js');
+const { db_path } = require('../config.json');
 
 // madlibs markup parser
 const { parser } = require('../helpers/mlm-parser.js');
@@ -13,24 +14,29 @@ const path = require('node:path');
 // data storage
 const Keyv = require('keyv');
 
+const keyvs = {
+		gameData : new Keyv(db_path, { namespace: 'gameData' }),
+		blanksSets : new Keyv(db_path, { namespace: 'blanksSets' }),
+		responses : new Keyv(db_path, { namespace: 'responses' }),
+		currentPrompts : new Keyv(db_path, { namespace: 'currentPrompts' })
+};
+
+for (k in keyvs) {
+	keyvs[k].on('error', err => console.log('Connection Error', err));
+}
+
+
+
+
 // madlibs core functions
 module.exports = {
 	// gamestate data
-	keyvs: {
-		gameData : new Keyv(),
-		//gameStati : new Keyv(),
-		blanksSets : new Keyv(),
-		responses : new Keyv(),
-		currentPrompts : new Keyv()
-	},
-
+	keyvs: keyvs,
+	
 	// function to send a word prompt, or finish the game otherwise
 	prompt: async (channel) => {
 		const cid = channel.id
 		const keyvs = module.exports.keyvs;
-
-		// reduce clashing responses
-		await keyvs.currentPrompts.set(cid,null);
 
 		// fetch game data
 		let blankSet = await keyvs.blanksSets.get(cid);
@@ -40,12 +46,16 @@ module.exports = {
 
 			const nextFill = blankSet.pop();
 			const lexClass = gameData.parsed[nextFill].lexClass;
+			
+			// figure out how many prompts are left
+			let totalPrompts = gameData.blanks.length;
+			let currentNo = totalPrompts - blankSet.length;
 
 			// create embed
 			const embed = new MessageEmbed()
-				.setTitle('Mad Libs')
-				.setDescription(`Give me a ${inlineCode(lexClass)}.` )
-				.setFooter('(↩️ this message)');
+				//.setTitle('Mad Libs')
+				.setDescription(`↩️ to this message with a ${inlineCode(lexClass)}.` )
+				.setFooter(`${currentNo}/${totalPrompts}`);
 
 			await keyvs.currentPrompts.set(cid, (await channel.send({embeds : [embed]} )).id);
 		} else {
@@ -80,7 +90,15 @@ module.exports = {
 				await channel.edit ({name:gameData.title}, "madlibs end");
 			}
 
-			//await keyvs.gameStati.set(cid, true);
+			// clear game data
+			try {
+				await keyvs.currentPrompts.delete(cid);
+				await keyvs.blanksSets.delete(cid);
+				await keyvs.responses.delete(cid);
+				await keyvs.gameData.delete(cid);
+			} catch (err) {
+				console.log(err);
+			}
 
 			// send result in thread
 			let c = "And the result is...";
@@ -140,7 +158,14 @@ module.exports = {
 		switch (await interaction.options.getSubcommand(false)) {
 			// command for starting a game
 			case "start":
-				await interaction.deferReply()
+				
+				// don't do DMs (shouldn't happen anyway...)
+				if ( !interaction.inGuild() || interaction.channel.isThread() ) {
+					await interaction.reply({content: "Error: this command only works in channels where you can create threads!", ephemeral:"true"});
+					return;
+				} else {
+					await interaction.deferReply();
+				}
 				
 				let title = await interaction.options.getString('title', false);
 				var file;
