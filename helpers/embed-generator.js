@@ -15,7 +15,12 @@ module.exports = {
        	let embeds = [];
        	let ct = "";
        	for (l of lines) {
-       		let ln = l + "\r\n";
+       		var ln;
+       		if (l) {
+       			ln = l + "\r\n";
+       		} else {
+       			ln = "\r\n";
+       		}
              // if can add the line then do
        		if ( (ct.length + ln.length) < (RL.DESC) ) {
        			if (ln) { // avoid random "undefined"'s'
